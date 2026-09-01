@@ -4,10 +4,14 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build:
     runs-on: macos-14
+    permissions:
+      contents: write   # 允许上传到 Release
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +21,6 @@ jobs:
       - name: Prepare offline www + IPA structure
         run: |
           chmod +x build-ipa.sh build_ipa.py
-          # 若已有 build-web.sh 则用它出 www/，否则直接用 public/ 内联
           [ -x build-web.sh ] && ./build-web.sh || true
           python3 build_ipa.py
           ls public/ | head
@@ -51,7 +54,29 @@ jobs:
           rm -f 天弱.ipa
           ditto -c -k --sequesterRsrc Payload 天弱.ipa
 
-      - name: Upload IPA
+      - name: Verify IPA
+        run: |
+          ls -la 天弱.ipa
+          file 天弱.ipa
+          unzip -l 天弱.ipa | head -20
+
+      - name: Upload IPA to Release (latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 天弱 iOS 最新构建
+          body: |
+            自动构建的 iOS IPA（免签名，支持 AltStore / Sideloadly / 爱思助手 侧载）
+            - 版本: 10.0.0
+            - 架构: arm64
+          files: 天弱.ipa
+          draft: false
+          prerelease: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifact (fallback)
         uses: actions/upload-artifact@v4
         with:
           name: 天弱-ipa
