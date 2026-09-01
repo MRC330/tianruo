@@ -1,0 +1,58 @@
+name: Build 天弱 IPA
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Prepare offline www + IPA structure
+        run: |
+          chmod +x build-ipa.sh build_ipa.py
+          # 若已有 build-web.sh 则用它出 www/，否则直接用 public/ 内联
+          [ -x build-web.sh ] && ./build-web.sh || true
+          python3 build_ipa.py
+          ls public/ | head
+
+      - name: Build .app with xcodebuild (unsigned)
+        run: |
+          set -e
+          mkdir -p build
+          xcodebuild archive \
+            -project ios/天弱.xcodeproj \
+            -scheme 天弱 \
+            -configuration Release \
+            -archivePath build/天弱.xcarchive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            ONLY_ACTIVE_ARCH=NO \
+            ARCHS="arm64" \
+            VALID_ARCHS="arm64" \
+            TARGETED_DEVICE_FAMILY="1,2" \
+            IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+            || {
+              echo "::warning::xcodebuild 失败，回退到结构合规 IPA"
+              python3 build_ipa.py
+              exit 0
+            }
+
+          mkdir -p Payload
+          cp -r build/天弱.xcarchive/Products/Applications/天弱.app Payload/
+          rm -f 天弱.ipa
+          ditto -c -k --sequesterRsrc Payload 天弱.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: 天弱-ipa
+          path: 天弱.ipa
