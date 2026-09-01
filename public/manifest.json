@@ -1,0 +1,14 @@
+{
+  "name": "天弱",
+  "short_name": "天弱",
+  "description": "年轻人的交友社区",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e0e14",
+  "theme_color": "#ff4d8d",
+  "icons": [
+    { "src": "/avatar/tianruo?size=192", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/avatar/tianruo?size=512", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

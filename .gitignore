@@ -1,0 +1,14 @@
+node_modules/
+data/
+*.log
+*.zip
+*.tar.gz
+.DS_Store
+.env
+build/
+build2/
+build3/
+build4/
+build5/
+dist/
+sig/

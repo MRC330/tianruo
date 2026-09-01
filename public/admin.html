@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>天弱 管理后台</title>
+<style>
+:root{--bg:#0e0e14;--bg2:#15151f;--card:#1a1a26;--card2:#22222f;--line:rgba(255,255,255,.08);
+--text:#f2f2f7;--sub:#9a9ab0;--dim:#6b6b80;--pink:#ff4d8d;--purple:#7c5cff;--cyan:#3ddad7;--gold:#ffc94d;--green:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;font-size:14px}
+.login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 20%,#2a1b3d,#0e0e14 60%)}
+.login-box{background:var(--card);padding:32px;border-radius:20px;width:340px;border:1px solid var(--line)}
+.login-box h1{font-size:24px;margin:0 0 6px;text-align:center}
+.login-box p{color:var(--sub);font-size:13px;text-align:center;margin:0 0 22px}
+input{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;margin-bottom:12px}
+input:focus{border-color:var(--purple)}
+button{border:none;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;background:var(--card2);color:var(--text)}
+button:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#ff4d8d,#7c5cff);color:#fff;width:100%}
+.btn-danger{background:rgba(255,92,122,.16);color:#ff6b8a}
+.btn-sm{padding:6px 12px;font-size:12.5px;border-radius:9px}
+.shell{display:flex;min-height:100vh}
+.side{width:210px;background:var(--bg2);border-right:1px solid var(--line);padding:18px 0;flex:0 0 auto}
+.side .logo{font-size:19px;font-weight:800;padding:0 20px 20px;background:linear-gradient(135deg,#ff4d8d,#7c5cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.side a{display:block;padding:11px 20px;color:var(--sub);text-decoration:none;font-size:14px;cursor:pointer;border-left:3px solid transparent}
+.side a:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.side a.on{color:var(--pink);border-left-color:var(--pink);background:rgba(255,77,141,.08)}
+.main{flex:1;padding:22px 26px;overflow-x:auto}
+h2{font-size:19px;margin:0 0 18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-bottom:22px}
+.stat{background:var(--card);border-radius:14px;padding:16px;border:1px solid var(--line)}
+.stat b{display:block;font-size:24px;font-weight:800;margin-bottom:3px}
+.stat span{color:var(--dim);font-size:12px}
+.panel{background:var(--card);border-radius:14px;padding:18px;margin-bottom:18px;border:1px solid var(--line)}
+.panel h3{font-size:15px;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-weight:600;font-size:12px}
+tr:hover td{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:rgba(124,92,255,.16);color:#b9a8ff}
+.tag.on{background:rgba(74,222,128,.16);color:var(--green)}
+.tag.bad{background:rgba(255,92,122,.16);color:#ff6b8a}
+.chart{display:flex;align-items:flex-end;gap:8px;height:130px;padding-top:10px}
+.chart div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.bar{width:100%;background:linear-gradient(180deg,var(--pink),var(--purple));border-radius:5px 5px 0 0;min-height:3px;transition:.4s}
+.bl{color:var(--dim);font-size:10.5px}
+.bv{font-size:11px;color:var(--sub)}
+.dist{display:flex;gap:14px;flex-wrap:wrap}
+.dist div{text-align:center}
+.ring{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.toolbar input{margin:0;flex:1;min-width:180px;max-width:300px}
+.empty{text-align:center;color:var(--dim);padding:34px}
+.toast{position:fixed;left:50%;top:24px;transform:translateX(-50%);background:rgba(30,30,40,.96);padding:11px 20px;
+border-radius:12px;font-size:13.5px;z-index:200;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{opacity:1}
+@media(max-width:700px){.side{width:60px}.side a{font-size:0;padding:14px 0;text-align:center}.side .logo{font-size:0}.side .logo:after{content:"⚡";font-size:20px;-webkit-text-fill-color:var(--pink)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const S = { token: localStorage.getItem('tianruo_admin') || '', page: 'dashboard', data: {} };
+const $ = (s) => document.querySelector(s);
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2000)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ago(t){const d=Date.now()-t;if(d<60000)return'刚刚';if(d<3600000)return Math.floor(d/60000)+'分钟前';
+if(d<86400000)return Math.floor(d/3600000)+'小时前';if(d<7*86400000)return Math.floor(d/86400000)+'天前';
+return new Date(t).getMonth()+1+'/'+new Date(t).getDate()}
+
+async function api(path, body, method){
+  const base = localStorage.getItem('tianruo_server') || '';
+  const r = await fetch(base + path, {
+    method: method || (body ? 'POST' : 'GET'),
+    headers: Object.assign({'Content-Type':'application/json'}, S.token ? {'x-admin-token': S.token} : {}),
+    body: body ? JSON.stringify(body) : null,
+  });
+  return r.json();
+}
+
+/* ---------- 登录 ---------- */
+function renderLogin(){
+  $('#root').innerHTML = `<div class="login"><div class="login-box">
+    <h1>⚡ 天弱 后台</h1><p>请输入管理密钥</p>
+    <input id="tk" placeholder="管理密钥" autocomplete="off">
+    <input id="sv" placeholder="服务器地址（留空同源）" value="${esc(localStorage.getItem('tianruo_server')||'')}">
+    <button class="btn-primary" id="lg">进入后台</button>
+    <div style="color:var(--dim);font-size:11.5px;text-align:center;margin-top:12px">默认密钥 tianruo-admin-2024</div>
+  </div></div>`;
+  $('#lg').onclick = async () => {
+    const sv = $('#sv').value.trim();
+    if (sv) localStorage.setItem('tianruo_server', sv.replace(/\/+$/,'')); else localStorage.removeItem('tianruo_server');
+    const r = await api('/api/admin/login', { token: $('#tk').value.trim() });
+    if (!r.ok) return toast(r.msg);
+    S.token = r.token; localStorage.setItem('tianruo_admin', r.token);
+    render();
+  };
+}
+
+/* ---------- 主框架 ---------- */
+function render(){
+  if (!S.token) return renderLogin();
+  $('#root').innerHTML = `<div class="shell">
+    <div class="side">
+      <div class="logo">⚡ 天弱</div>
+      <a data-p="dashboard" class="${S.page==='dashboard'?'on':''}">📊 数据看板</a>
+      <a data-p="users" class="${S.page==='users'?'on':''}">👥 用户管理</a>
+      <a data-p="moments" class="${S.page==='moments'?'on':''}">📝 内容审核</a>
+      <a data-p="reports" class="${S.page==='reports'?'on':''}">🚩 举报处理</a>
+      <a data-p="broadcast" class="${S.page==='broadcast'?'on':''}">📢 系统广播</a>
+      <a id="logout" style="position:absolute;bottom:20px;width:100%">🚪 退出</a>
+    </div>
+    <div class="main" id="main"><div class="empty">加载中…</div></div>
+  </div>`;
+  document.querySelectorAll('.side a[data-p]').forEach(a => a.onclick = () => { S.page = a.dataset.p; render(); });
+  $('#logout').onclick = () => { S.token=''; localStorage.removeItem('tianruo_admin'); renderLogin(); };
+  loadPage();
+}
+
+async function loadPage(){
+  const m = $('#main');
+  if (S.page === 'dashboard') {
+    const r = await api('/api/admin/dashboard');
+    if (!r.ok) return m.innerHTML = `<div class="empty">${esc(r.msg)}</div>`;
+    const o = r.overview;
+    const max = Math.max(...r.trend.map(t => t.users), 1);
+    m.innerHTML = `<h2>📊 数据看板</h2>
+      <div class="cards">
+        ${[['总用户', o.users, 'var(--text)'], ['今日新增', o.newToday, 'var(--green)'], ['本周新增', o.newWeek, 'var(--cyan)'],
+           ['今日活跃', o.activeToday, 'var(--gold)'], ['在线', o.online, 'var(--green)'], ['匹配数', o.matches, 'var(--pink)'],
+           ['消息总数', o.messages, 'var(--purple)'], ['今日消息', o.msgToday, 'var(--cyan)'], ['动态数', o.moments, 'var(--gold)'],
+           ['待处理举报', o.reports, 'var(--pink)'], ['会员数', o.vip, 'var(--gold)']]
+          .map(x => `<div class="stat"><b style="color:${x[2]}">${x[1]}</b><span>${x[0]}</span></div>`).join('')}
+      </div>
+      <div class="panel"><h3>近 7 日新增用户</h3>
+        <div class="chart">${r.trend.map(t => `<div>
+          <span class="bv">${t.users}</span>
+          <div class="bar" style="height:${Math.max(3,(t.users/max)*86)}px"></div>
+          <span class="bl">${esc(t.date)}</span></div>`).join('')}</div>
+      </div>
+      <div class="panel"><h3>用户构成</h3>
+        <div class="dist">
+          <div><div class="ring" style="background:conic-gradient(var(--pink) 0 ${(r.gender['女']||0)/Math.max(1,o.users)*100}%, var(--cyan) 0)">
+            <span style="background:var(--bg);width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px">性别</span></div>
+            <div style="font-size:12px;color:var(--dim);margin-top:6px">女 ${r.gender['女']||0} · 男 ${r.gender['男']||0}</div></div>
+          ${r.cities.map(c => `<div><div class="ring" style="background:rgba(124,92,255,.2);color:var(--purple)">${c.n}</div>
+            <div style="font-size:12px;color:var(--dim);margin-top:6px">${esc(c.name)}</div></div>`).join('')}
+        </div>
+      </div>
+      <div style="color:var(--dim);font-size:12px">服务端运行 ${Math.floor(r.uptime/60)} 分钟 · 版本 v${esc(r.version)}</div>`;
+  }
+
+  if (S.page === 'users') {
+    m.innerHTML = `<h2>👥 用户管理</h2>
+      <div class="toolbar">
+        <input id="kw" placeholder="搜索昵称 / 手机号 / 城市">
+        <button class="btn-sm" id="search">搜索</button>
+        <button class="btn-sm" id="reset">重置</button>
+      </div>
+      <div class="panel" id="ut"><div class="empty">加载中…</div></div>`;
+    const go = async (kw) => {
+      const r = await api('/api/admin/users?kw=' + encodeURIComponent(kw||'') + '&size=50');
+      const box = $('#ut');
+      if (!r.ok) return box.innerHTML = `<div class="empty">${esc(r.msg)}</div>`;
+      box.innerHTML = `<table><tr><th>用户</th><th>手机</th><th>城市</th><th>状态</th><th>动态</th><th>注册</th><th>活跃</th><th>操作</th></tr>
+        ${r.list.map(u => `<tr>
+          <td><b>${esc(u.nickname)}</b>${u.vip?'<span class="tag on">VIP</span>':''}</td>
+          <td style="color:var(--dim)">${esc(u.phone||'')}</td>
+          <td>${esc(u.city||'-')}</td>
+          <td>${u.banned?'<span class="tag bad">已封禁</span>':u.online?'<span class="tag on">在线</span>':'<span class="tag">离线</span>'}</td>
+          <td>${u.moments}</td>
+          <td style="color:var(--dim)">${esc(ago(u.createdAt))}</td>
+          <td style="color:var(--dim)">${esc(ago(u.lastActive||u.createdAt))}</td>
+          <td><button class="btn-sm ${u.banned?'':'btn-danger'}" data-b="${esc(u.id)}" data-v="${u.banned?'false':'true'}">
+            ${u.banned?'解封':'封禁'}</button></td></tr>`).join('')}</table>
+        ${r.list.length?'':'<div class="empty">没有找到用户</div>'}
+        <div style="color:var(--dim);font-size:12px;margin-top:10px">共 ${r.total} 个用户</div>`;
+      box.querySelectorAll('[data-b]').forEach(b => b.onclick = async () => {
+        const r2 = await api('/api/admin/user/' + b.dataset.b + '/ban', { ban: b.dataset.v === 'true' });
+        toast(r2.ok ? (b.dataset.v==='true'?'已封禁':'已解封') : r2.msg);
+        if (r2.ok) go($('#kw') ? $('#kw').value : '');
+      });
+    };
+    $('#search').onclick = () => go($('#kw').value);
+    $('#reset').onclick = () => { $('#kw').value=''; go(''); };
+    $('#kw').onkeydown = e => e.key === 'Enter' && go($('#kw').value);
+    go('');
+  }
+
+  if (S.page === 'moments') {
+    const r = await api('/api/admin/moments');
+    if (!r.ok) return m.innerHTML = `<div class="empty">${esc(r.msg)}</div>`;
+    const risky = r.list.filter(x => x.risky).length;
+    m.innerHTML = `<h2>📝 内容审核</h2>
+      <div class="cards">
+        <div class="stat"><b>${r.list.length}</b><span>最近动态</span></div>
+        <div class="stat"><b style="color:var(--pink)">${risky}</b><span>风险内容</span></div>
+      </div>
+      <div class="panel"><table><tr><th>内容</th><th>作者</th><th>互动</th><th>风险</th><th>时间</th><th>操作</th></tr>
+        ${r.list.map(x => `<tr>
+          <td style="max-width:340px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.topic?`<span class="tag">${esc(x.topic)}</span> `:''}${esc(x.text)}</div>
+            ${x.images&&x.images.length?`<span style="color:var(--dim);font-size:11.5px">${x.images.length} 张图</span>`:''}</td>
+          <td>${esc(x.user?x.user.nickname:'-')}</td>
+          <td style="color:var(--dim)">❤️${x.likes} 💬${x.comments}</td>
+          <td>${x.risky?`<span class="tag bad">敏感词</span>`:'<span class="tag on">正常</span>'}</td>
+          <td style="color:var(--dim)">${esc(ago(x.createdAt))}</td>
+          <td><button class="btn-sm btn-danger" data-d="${esc(x.id)}">删除</button></td></tr>`).join('')}</table>
+        ${r.list.length?'':'<div class="empty">暂无动态</div>'}</div>`;
+    m.querySelectorAll('[data-d]').forEach(b => b.onclick = async () => {
+      const r2 = await api('/api/admin/moment/' + b.dataset.d + '/delete', {});
+      toast(r2.ok ? '已删除' : r2.msg);
+      if (r2.ok) loadPage();
+    });
+  }
+
+  if (S.page === 'reports') {
+    const r = await api('/api/admin/reports');
+    if (!r.ok) return m.innerHTML = `<div class="empty">${esc(r.msg)}</div>`;
+    m.innerHTML = `<h2>🚩 举报处理</h2>
+      <div class="panel">${r.list.length ? `<table><tr><th>举报人</th><th>被举报</th><th>原因</th><th>时间</th><th>状态</th><th>操作</th></tr>
+        ${r.list.map(x => `<tr>
+          <td>${esc(x.from?x.from.nickname:'-')}</td>
+          <td>${esc(x.to?x.to.nickname:'-')}</td>
+          <td style="max-width:200px">${esc(x.reason||'-')}</td>
+          <td style="color:var(--dim)">${esc(ago(x.createdAt))}</td>
+          <td>${x.resolved?'<span class="tag on">已处理</span>':'<span class="tag bad">待处理</span>'}</td>
+          <td>${x.resolved?'':`<button class="btn-sm" data-ok="${esc(x.id)}">标记处理</button>
+            <button class="btn-sm btn-danger" data-ban="${esc(x.id)}">封禁用户</button>`}</td></tr>`).join('')}</table>`
+        : '<div class="empty">🎉 暂无举报记录</div>'}</div>`;
+    m.querySelectorAll('[data-ok]').forEach(b => b.onclick = async () => {
+      const r2 = await api('/api/admin/report/' + b.dataset.ok + '/resolve', { note: '已处理' });
+      toast(r2.ok ? '已标记处理' : r2.msg); if (r2.ok) loadPage();
+    });
+    m.querySelectorAll('[data-ban]').forEach(b => b.onclick = async () => {
+      if (!confirm('确定封禁该用户？')) return;
+      const r2 = await api('/api/admin/report/' + b.dataset.ban + '/resolve', { banUser: true, note: '举报成立' });
+      toast(r2.ok ? '已处理并封禁' : r2.msg); if (r2.ok) loadPage();
+    });
+  }
+
+  if (S.page === 'broadcast') {
+    m.innerHTML = `<h2>📢 系统广播</h2>
+      <div class="panel">
+        <div style="color:var(--sub);font-size:13px;margin-bottom:12px">消息会推送给所有用户的通知列表</div>
+        <input id="bt" placeholder="输入广播内容" style="margin-bottom:12px">
+        <button class="btn-sm" id="send" style="background:var(--grad,linear-gradient(135deg,#ff4d8d,#7c5cff));color:#fff">发送广播</button>
+      </div>`;
+    $('#send').onclick = async () => {
+      const text = $('#bt').value.trim();
+      if (!text) return toast('请输入内容');
+      const r = await api('/api/admin/broadcast', { text });
+      toast(r.ok ? `已发送给 ${r.count} 个用户` : r.msg);
+      if (r.ok) $('#bt').value = '';
+    };
+  }
+}
+
+render();
+</script>
+</body>
+</html>
